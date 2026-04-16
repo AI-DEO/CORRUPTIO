@@ -1,5 +1,6 @@
 import express from 'express'
 import http from 'http'
+import path from 'path'
 import cors from 'cors'
 import { Server } from 'socket.io'
 import { PrismaClient } from '@prisma/client'
@@ -13,15 +14,19 @@ const server = http.createServer(app)
 
 export const prisma = new PrismaClient()
 
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
+const IS_PROD = process.env.NODE_ENV === 'production'
+
 export const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST'],
-  },
+  cors: IS_PROD
+    ? undefined
+    : { origin: CLIENT_URL, methods: ['GET', 'POST'] },
 })
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }))
+if (!IS_PROD) {
+  app.use(cors({ origin: CLIENT_URL }))
+}
 app.use(express.json())
 
 // REST routes
@@ -33,11 +38,21 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() })
 })
 
+// In production, serve the built client
+if (IS_PROD) {
+  const clientDist = path.join(__dirname, '../../client/dist')
+  app.use(express.static(clientDist))
+  // SPA fallback — all non-API routes serve index.html
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'))
+  })
+}
+
 // Socket.io
 registerSocketHandlers(io)
 
 const PORT = parseInt(process.env.PORT || '3001', 10)
 
-server.listen(PORT, () => {
-  console.log(`[CORRUPTIO] Server running on port ${PORT}`)
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[CORRUPTIO] Server running on port ${PORT} (${IS_PROD ? 'production' : 'development'})`)
 })
