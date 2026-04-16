@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String       @id @default(cuid())
+  username  String       @unique
+  email     String       @unique
+  password  String
+  createdAt DateTime     @default(now())
+  games     GamePlayer[]
+}
+
+model Game {
+  id           String     @id @default(cuid())
+  status       GameStatus @default(LOBBY)
+  currentTurn  Int        @default(0)
+  currentPhase PhaseType  @default(NEGOTIATION)
+  phaseEndsAt  DateTime?
+  hostId       String
+  config       Json       @default("{}")
+  publicLog    Json[]     @default([])
+  journalLog   Json[]     @default([])
+  theatreLog   Json[]     @default([])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  players      GamePlayer[]
+  pacts        Pact[]
+  actions      Action[]
+}
+
+enum GameStatus {
+  LOBBY
+  PLAYING
+  FINISHED
+  ABANDONED
+}
+
+enum PhaseType {
+  NEGOTIATION
+  PUBLIC_ACTION
+  UNDERGROUND_ACTION
+  EVENT
+  DESTINY
+  JOURNAL
+}
+
+model GamePlayer {
+  id             String    @id @default(cuid())
+  gameId         String
+  userId         String
+  character      Character
+  camp           Camp
+  ip             Int       @default(0)
+  rep            Int       @default(0)
+  ar             Int       @default(0)
+  isCount        Int       @default(0)
+  isContent      Json[]    @default([])
+  destinyCount   Int       @default(0)
+  destinyCards   Json[]    @default([])
+  zones          String[]  @default([])
+  corruptActs    Int       @default(0)
+  revealedActs   Int       @default(0)
+  isEliminated   Boolean   @default(false)
+  victoryAchieved Boolean  @default(false)
+  hasActedThisTurn Boolean @default(false)
+  game           Game      @relation(fields: [gameId], references: [id])
+  user           User      @relation(fields: [userId], references: [id])
+  actions        Action[]
+
+  @@unique([gameId, userId])
+  @@unique([gameId, character])
+}
+
+enum Camp {
+  ORDER
+  SHADOW
+  NEUTRAL
+}
+
+enum Character {
+  MAIRE
+  JOURNALISTE
+  JUGE
+  COMMISSAIRE
+  INSPECTEUR
+  PARRAIN
+  BANQUIER
+  ESPIONNE
+  DETECTIVE
+  LOBBYISTE
+  FEMME_AFFAIRES
+  MAGNAT
+  INFLUENCEUSE
+  ACTIVISTE
+}
+
+model Pact {
+  id          String     @id @default(cuid())
+  gameId      String
+  player1Id   String
+  player2Id   String
+  type        PactType
+  terms       String
+  status      PactStatus @default(ACTIVE)
+  createdTurn Int
+  brokenAt    DateTime?
+  brokerId    String?
+  game        Game       @relation(fields: [gameId], references: [id])
+}
+
+enum PactType {
+  FORMAL
+  SECRET
+}
+
+enum PactStatus {
+  ACTIVE
+  BROKEN
+  FULFILLED
+}
+
+model Action {
+  id         String     @id @default(cuid())
+  gameId     String
+  playerId   String
+  turn       Int
+  phase      PhaseType
+  type       ActionType
+  actionKey  String
+  targetId   String?
+  payload    Json       @default("{}")
+  isRevealed Boolean    @default(false)
+  diceResult Int?
+  createdAt  DateTime   @default(now())
+  player     GamePlayer @relation(fields: [playerId], references: [id])
+  game       Game       @relation(fields: [gameId], references: [id])
+}
+
+enum ActionType {
+  PUBLIC
+  UNDERGROUND
+  CORRUPTION
+}
