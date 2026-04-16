@@ -23,7 +23,7 @@ import type { ServerToClientEvents, ClientToServerEvents } from '../../../shared
 import { ActionResolver } from './ActionResolver'
 import { TurnManager } from './TurnManager'
 import { getAvailableActions } from './actions'
-import { EVENT_CARDS, drawEventCard } from './events'
+import { EVENT_CARDS, drawEventCard, applyEventCard } from './events'
 
 // In-memory store of active game engines
 const activeGames = new Map<string, GameEngine>()
@@ -340,39 +340,14 @@ export class GameEngine {
       if (card) {
         this.drawnEventIds.add(card.id)
         this.lastEvent = card
-        this.applyEventCard(card)
+        this.applyEventCardInternal(card)
         this.io.to(this.gameId).emit('event:card:drawn', card)
       }
     }
   }
 
-  private applyEventCard(card: EventCard): void {
-    // Simple event effects for MVP
-    const players = this.getAllPlayers()
-    switch (card.type) {
-      case 'global':
-        // Affects all players
-        for (const p of players) {
-          p.ip = Math.max(0, p.ip + (Math.random() > 0.5 ? 5 : -5))
-        }
-        break
-      case 'targeted':
-        if (card.targetId) {
-          const target = this.players.get(card.targetId)
-          if (target) {
-            target.rep = Math.max(0, target.rep - 10)
-          }
-        }
-        break
-      case 'opportunity':
-        // Highest IP player gets a bonus
-        const sorted = [...players].sort((a, b) => b.ip - a.ip)
-        if (sorted[0]) sorted[0].ar += 15
-        break
-      case 'revelation':
-        // Random underground action gets revealed
-        break
-    }
+  private applyEventCardInternal(card: EventCard): void {
+    applyEventCard(card, this)
   }
 
   // ── Destiny Cards ──

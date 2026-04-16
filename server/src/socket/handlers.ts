@@ -12,6 +12,49 @@ const socketUsers = new Map<string, { userId: string; username: string }>()
 // Map userId -> socket.id
 const userSockets = new Map<string, string>()
 
+// Pending pact proposals: pactId -> proposal details
+const pendingPacts = new Map<
+  string,
+  {
+    pactId: string
+    fromPlayerId: string
+    toPlayerId: string
+    type: 'formal' | 'secret'
+    terms: string
+    gameId: string
+  }
+>()
+
+/**
+ * Extract the game context for a player from their socket rooms.
+ * Returns { gameId, engine, player } or null if any part is missing.
+ */
+function getPlayerGameContext(
+  socket: TypedSocket,
+  user: { userId: string; username: string }
+): { gameId: string; engine: GameEngine; player: ReturnType<GameEngine['getPlayerByUserId']> & {} } | null {
+  const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
+  if (rooms.length === 0) {
+    socket.emit('error', { message: 'Not in any game room', code: 'NO_GAME_ROOM' })
+    return null
+  }
+
+  const gameId = rooms[0]
+  const engine = getGameEngine(gameId)
+  if (!engine) {
+    socket.emit('error', { message: 'Game engine not found for this room', code: 'ENGINE_NOT_FOUND' })
+    return null
+  }
+
+  const player = engine.getPlayerByUserId(user.userId)
+  if (!player) {
+    socket.emit('error', { message: 'You are not a player in this game', code: 'PLAYER_NOT_FOUND' })
+    return null
+  }
+
+  return { gameId, engine, player }
+}
+
 export function registerSocketHandlers(io: TypedServer): void {
   // Auth middleware
   io.use((socket, next) => {
@@ -125,14 +168,14 @@ export function registerSocketHandlers(io: TypedServer): void {
     socket.on('room:start', async ({ gameId }) => {
       const engine = getGameEngine(gameId)
       if (!engine) {
-        socket.emit('error', { message: 'Game engine not found' })
+        socket.emit('error', { message: 'Game engine not found', code: 'ENGINE_NOT_FOUND' })
         return
       }
 
       // Verify host
       const game = await prisma.game.findUnique({ where: { id: gameId } })
       if (!game || game.hostId !== user.userId) {
-        socket.emit('error', { message: 'Only the host can start the game' })
+        socket.emit('error', { message: 'Only the host can start the game', code: 'NOT_HOST' })
         return
       }
 
@@ -146,24 +189,22 @@ export function registerSocketHandlers(io: TypedServer): void {
     // ── Negotiation ──
 
     socket.on('negotiate:message', ({ toPlayerId, content }) => {
-      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
-      if (rooms.length === 0) return
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
 
-      const gameId = rooms[0]
-      const engine = getGameEngine(gameId)
-      if (!engine) return
-
-      const player = engine.getPlayerByUserId(user.userId)
-      if (!player) return
+      const { gameId, engine, player } = ctx
 
       if (!engine.canSendMessage(player.playerId)) {
-        socket.emit('error', { message: 'Message limit reached (3 per turn)' })
+        socket.emit('error', { message: 'Message limit reached (3 per turn)', code: 'MESSAGE_LIMIT' })
         return
       }
 
       // Find target user
       const target = engine.getPlayer(toPlayerId)
-      if (!target) return
+      if (!target) {
+        socket.emit('error', { message: 'Target player not found', code: 'TARGET_NOT_FOUND' })
+        return
+      }
 
       // Send message directly — never persisted (Rule #4)
       const targetSocketId = userSockets.get(target.userId)
@@ -178,20 +219,33 @@ export function registerSocketHandlers(io: TypedServer): void {
     })
 
     socket.on('negotiate:pact:propose', async ({ toPlayerId, type, terms }) => {
-      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
-      if (rooms.length === 0) return
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
 
-      const gameId = rooms[0]
-      const engine = getGameEngine(gameId)
-      if (!engine) return
-
-      const player = engine.getPlayerByUserId(user.userId)
-      if (!player) return
+      const { gameId, engine, player } = ctx
 
       const target = engine.getPlayer(toPlayerId)
-      if (!target) return
+      if (!target) {
+        socket.emit('error', { message: 'Target player not found', code: 'TARGET_NOT_FOUND' })
+        return
+      }
 
-      const pactId = `pact_pending_${Date.now()}`
+      if (target.playerId === player.playerId) {
+        socket.emit('error', { message: 'Cannot propose a pact with yourself', code: 'SELF_PACT' })
+        return
+      }
+
+      const pactId = `pact_pending_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+
+      // Store the pending proposal
+      pendingPacts.set(pactId, {
+        pactId,
+        fromPlayerId: player.playerId,
+        toPlayerId,
+        type,
+        terms,
+        gameId,
+      })
 
       // Send proposal to both players
       const proposal = {
@@ -210,40 +264,102 @@ export function registerSocketHandlers(io: TypedServer): void {
     })
 
     socket.on('negotiate:pact:accept', ({ pactId }) => {
-      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
-      if (rooms.length === 0) return
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
 
-      const gameId = rooms[0]
-      const engine = getGameEngine(gameId)
-      if (!engine) return
+      const { gameId, engine, player } = ctx
 
-      // TODO: look up pending pact and create it
-      // For now, simplified: create the pact
-      const player = engine.getPlayerByUserId(user.userId)
-      if (!player) return
+      // Look up the pending pact
+      const pending = pendingPacts.get(pactId)
+      if (!pending) {
+        socket.emit('error', { message: 'Pact proposal not found or already resolved', code: 'PACT_NOT_FOUND' })
+        return
+      }
 
-      // In a full implementation, we'd track pending proposals
-      // For MVP, emit result
-      socket.emit('negotiate:pact:result', { pactId, accepted: true })
+      // Only the target of the proposal can accept
+      if (pending.toPlayerId !== player.playerId) {
+        socket.emit('error', { message: 'Only the pact recipient can accept', code: 'PACT_NOT_RECIPIENT' })
+        return
+      }
+
+      // Verify the pact belongs to this game
+      if (pending.gameId !== gameId) {
+        socket.emit('error', { message: 'Pact does not belong to this game', code: 'PACT_WRONG_GAME' })
+        return
+      }
+
+      // Create the pact via the engine
+      const createdPactId = engine.createPact(
+        pending.fromPlayerId,
+        pending.toPlayerId,
+        pending.type,
+        pending.terms
+      )
+
+      // Remove from pending
+      pendingPacts.delete(pactId)
+
+      // Notify both players of acceptance
+      const result = { pactId: createdPactId, accepted: true }
+
+      socket.emit('negotiate:pact:result', result)
+
+      const proposer = engine.getPlayer(pending.fromPlayerId)
+      if (proposer) {
+        const proposerSocketId = userSockets.get(proposer.userId)
+        if (proposerSocketId) {
+          io.to(proposerSocketId).emit('negotiate:pact:result', result)
+        }
+      }
     })
 
     socket.on('negotiate:pact:reject', ({ pactId }) => {
-      // Just emit rejection
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
+
+      const { gameId, engine, player } = ctx
+
+      // Look up the pending pact
+      const pending = pendingPacts.get(pactId)
+      if (!pending) {
+        socket.emit('error', { message: 'Pact proposal not found or already resolved', code: 'PACT_NOT_FOUND' })
+        return
+      }
+
+      // Only the target of the proposal can reject
+      if (pending.toPlayerId !== player.playerId) {
+        socket.emit('error', { message: 'Only the pact recipient can reject', code: 'PACT_NOT_RECIPIENT' })
+        return
+      }
+
+      // Remove from pending
+      pendingPacts.delete(pactId)
+
+      // Notify the rejector
       socket.emit('negotiate:pact:result', { pactId, accepted: false })
+
+      // Notify the proposer of rejection
+      const proposer = engine.getPlayer(pending.fromPlayerId)
+      if (proposer) {
+        const proposerSocketId = userSockets.get(proposer.userId)
+        if (proposerSocketId) {
+          io.to(proposerSocketId).emit('negotiate:pact:result', { pactId, accepted: false })
+        }
+      }
     })
 
     // ── Actions ──
 
     socket.on('action:public:choose', async ({ actionKey, targetId, payload: actionPayload }) => {
-      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
-      if (rooms.length === 0) return
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
 
-      const gameId = rooms[0]
-      const engine = getGameEngine(gameId)
-      if (!engine) return
+      const { gameId, engine, player } = ctx
 
-      const player = engine.getPlayerByUserId(user.userId)
-      if (!player) return
+      if (engine.getCurrentPhase() !== 'PUBLIC_ACTION') {
+        socket.emit('error', { message: 'Public actions can only be taken during the Public Action phase', code: 'WRONG_PHASE' })
+        return
+      }
 
       const result = await engine.resolvePublicAction(
         player.playerId,
@@ -253,20 +369,24 @@ export function registerSocketHandlers(io: TypedServer): void {
       )
 
       if (!result.success) {
-        socket.emit('error', { message: 'Action failed' })
+        socket.emit('error', {
+          message: `Public action "${actionKey}" failed: action could not be resolved`,
+          code: 'PUBLIC_ACTION_FAILED',
+        })
       }
     })
 
     socket.on('action:underground:execute', async ({ actionKey, targetId, payload: actionPayload }) => {
-      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
-      if (rooms.length === 0) return
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
 
-      const gameId = rooms[0]
-      const engine = getGameEngine(gameId)
-      if (!engine) return
+      const { gameId, engine, player } = ctx
 
-      const player = engine.getPlayerByUserId(user.userId)
-      if (!player) return
+      const phase = engine.getCurrentPhase()
+      if (phase !== 'PUBLIC_ACTION' && phase !== 'UNDERGROUND_ACTION') {
+        socket.emit('error', { message: 'Underground actions are not available in the current phase', code: 'WRONG_PHASE' })
+        return
+      }
 
       const result = await engine.resolveUndergroundAction(
         player.playerId,
@@ -276,53 +396,81 @@ export function registerSocketHandlers(io: TypedServer): void {
       )
 
       if (!result.success) {
-        socket.emit('error', { message: 'Underground action failed' })
+        socket.emit('error', {
+          message: `Underground action "${actionKey}" failed: action could not be resolved`,
+          code: 'UNDERGROUND_ACTION_FAILED',
+        })
       }
     })
 
     // ── Pact Breaking ──
 
     socket.on('pact:break', ({ pactId }) => {
-      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
-      if (rooms.length === 0) return
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
 
-      const gameId = rooms[0]
-      const engine = getGameEngine(gameId)
-      if (!engine) return
+      const { gameId, engine, player } = ctx
 
-      const player = engine.getPlayerByUserId(user.userId)
-      if (!player) return
-
-      engine.breakPact(pactId, player.playerId)
+      const success = engine.breakPact(pactId, player.playerId)
+      if (!success) {
+        socket.emit('error', {
+          message: 'Cannot break pact: pact not found, already broken, or you are not a party to it',
+          code: 'PACT_BREAK_FAILED',
+        })
+      }
     })
 
     // ── Theatre Survival ──
 
     socket.on('theatre:survive', ({ optionIndex }) => {
-      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
-      if (rooms.length === 0) return
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
 
-      const gameId = rooms[0]
-      const engine = getGameEngine(gameId)
-      if (!engine) return
+      const { gameId, engine, player } = ctx
 
-      const player = engine.getPlayerByUserId(user.userId)
-      if (!player) return
+      if (engine.getCurrentPhase() !== 'EVENT') {
+        socket.emit('error', { message: 'Theatre survival is only available during the Event phase', code: 'WRONG_PHASE' })
+        return
+      }
 
-      // TODO: validate survival option and apply
-      io.to(gameId).emit('theatre:survived', {
-        playerId: player.playerId,
-        optionIndex,
-      })
+      try {
+        const result = (engine as any).applyTheatreSurvival(player.playerId, optionIndex)
+
+        io.to(gameId).emit('theatre:survived', {
+          playerId: player.playerId,
+          optionIndex,
+        })
+      } catch (err: any) {
+        socket.emit('error', {
+          message: err.message || 'Theatre survival option could not be applied',
+          code: 'THEATRE_SURVIVAL_FAILED',
+        })
+      }
     })
 
     // ── Destiny Cards ──
 
     socket.on('destiny:play', ({ cardId, targetId }) => {
-      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id && !r.startsWith('player:'))
-      if (rooms.length === 0) return
+      const ctx = getPlayerGameContext(socket, user)
+      if (!ctx) return
 
-      // TODO: implement destiny card play logic
+      const { gameId, engine, player } = ctx
+
+      try {
+        const result = (engine as any).playDestinyCard(player.playerId, cardId, targetId)
+
+        if (result && !result.success) {
+          socket.emit('error', {
+            message: result.message || `Destiny card "${cardId}" could not be played`,
+            code: 'DESTINY_CARD_FAILED',
+          })
+        }
+      } catch (err: any) {
+        socket.emit('error', {
+          message: err.message || `Destiny card "${cardId}" could not be played`,
+          code: 'DESTINY_CARD_FAILED',
+        })
+      }
     })
 
     // ── Disconnect ──
