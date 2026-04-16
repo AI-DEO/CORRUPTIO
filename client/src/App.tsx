@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
+import { useToastStore } from './stores/toastStore'
+import Toast from './components/ui/Toast'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import LobbyListPage from './pages/LobbyListPage'
@@ -13,8 +15,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const toastMessages = useToastStore((s) => s.messages)
+  const dismissToast = useToastStore((s) => s.dismiss)
+
   return (
     <div className="min-h-screen bg-bg-primary">
+      <Toast messages={toastMessages} onDismiss={dismissToast} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
