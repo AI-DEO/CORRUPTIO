@@ -1,47 +1,119 @@
-# README — CORRUPTIO Data (Pour Claude Code)
+# CORRUPTIO - Données des personnages
 
-## Contexte du projet
-CORRUPTIO est un jeu de plateau politique multijoueur en ligne (2-6 joueurs) se déroulant à Porto Mendacio, une ville fictive corrompue. Le jeu tourne autour de 14 personnages jouables avec des rôles, capacités spéciales et portraits uniques.
+Bundle complet des 14 fiches personnages pour intégration dans le jeu.
 
-## Ce que contient ce dossier
+## Contenu du dossier
 
-- `personnages.json` — Fiches complètes des 14 personnages
-- `portraits/` — Portraits JPG de chaque personnage (format ~60-80 KB chacun)
+```
+corruptio_data/
+├── personnages.json          # Toutes les données structurées
+├── README_CLAUDE_CODE.md     # Ce fichier
+└── portraits/                # 14 portraits 600x600px JPG
+    ├── maire.jpg
+    ├── journaliste.jpg
+    ├── juge.jpg
+    ├── commissaire.jpg
+    ├── inspecteur.jpg
+    ├── parrain.jpg
+    ├── banquier.jpg
+    ├── espionne.jpg
+    ├── detective.jpg
+    ├── lobbyiste.jpg
+    ├── femme_affaires.jpg
+    ├── magnat_medias.jpg
+    ├── influenceuse.jpg
+    └── activiste.jpg
+```
 
-## Instructions pour Claude Code
+## Structure du JSON
 
-### Tâche principale
-Intègre les 14 personnages définis dans `personnages.json` dans le jeu CORRUPTIO existant.
+```json
+{
+  "meta": {
+    "jeu": "CORRUPTIO - Porto Mendacio",
+    "axes_competences": ["Influence", "Argent", "Secrets", "Réputation", "Charisme", "Intuition"],
+    "echelle_stats": "0-100",
+    "camps": { ... }
+  },
+  "personnages": [
+    {
+      "id": "maire",
+      "numero_dossier": "01",
+      "nom_complet": "Gérard Lemalain",
+      "surnom": "Le Caméléon",
+      "role": "MAIRE",
+      "camp": "ordre",
+      "difficulte": 3,
+      "citation": "Je suis là pour le bien commun et vous servir.",
+      "objectif_secret": "Plus d'influence que tous au tour 10 + au moins 1 élection remportée",
+      "stats": {
+        "influence": 60,
+        "argent": 40,
+        "secrets": 30,
+        "reputation": 65,
+        "charisme": 85,
+        "intuition": 55
+      },
+      "identite_cachee": false,
+      "fichier_portrait": "portraits/maire.jpg"
+    },
+    ...
+  ]
+}
+```
 
-### Où intégrer les personnages
-- **Données** : `shared/` — types TypeScript et données partagées
-- **Backend** : `server/` — logique de jeu, validation des actions
-- **Frontend** : `client/src/` — composants UI, affichage des portraits et fiches
+## Direction artistique commune
 
-### Charte graphique
-- Palette sombre et politique (noir, rouge bordeaux, or)
-- Style "dossier confidentiel / corruption urbaine"
-- Les portraits doivent apparaître dans la sélection de personnage et pendant la partie
+### Fiche personnage — style "carte à jouer premium"
 
-### Structure attendue dans le code
-```typescript
-interface Personnage {
-  id: string;
-    nom: string;
-      titre: string;
-        faction: string;
-          capaciteSpeciale: string;
-            description: string;
-              portrait: string; // chemin vers /data/corruptio_data/portraits/
-                stats: {
-                    influence: number;
-                        corruption: number;
-                            popularite: number;
-                              };
-                              }
-                              ```
+**Palette de fond unifiée (vert émeraude) :**
+- Fond carte : `linear-gradient(180deg, #142820 0%, #0a1812 100%)` avec `radial-gradient(ellipse at top, rgba(106, 184, 150, 0.1) 0%, transparent 60%)` en overlay
+- Bordure carte : `1px solid #2e4238`
+- Accent principal : `#6ab896` (vert émeraude)
+- Accent secondaire : `#9dd4b8` (vert tendre pour highlights)
+- Texte principal : `#e6f0ea`
+- Texte secondaire : `rgba(230, 240, 234, 0.55)`
 
-                              ### Commande de départ
-                              ```
-                              Lis personnages.json dans data/corruptio_data/, puis intègre ces 14 personnages dans le jeu en respectant la charte graphique et la structure TypeScript existante. Les portraits sont dans data/corruptio_data/portraits/.
-                              ```
+**Palette radar (6 axes - couleurs distinctes) :**
+| Axe | Couleur | Hex |
+|-----|---------|-----|
+| Influence | Cyan | `#4FC3F7` |
+| Argent | Jaune or | `#FFD54F` |
+| Secrets | Violet | `#BA68C8` |
+| Réputation | Vert menthe | `#81C784` |
+| Charisme | Corail | `#FF8A65` |
+| Intuition | Rose | `#F06292` |
+
+### Éléments de gabarit (identiques pour tous les personnages)
+- Ornements aux 4 coins (arabesques + points)
+- Numéro de carte en filigrane (top-right, opacité 0.05)
+- Blason décoratif derrière le radar (cercles + points cardinaux)
+- Cadre circulaire du portrait avec anneau pointillé
+- Lignes dorées dégradées en haut et en bas de la carte
+
+### Cas spécial — Espionne (identité classifiée)
+Si `identite_cachee: true` :
+- Remplacer portrait par silhouette avec "?"
+- Nom → `? ? ? ? ?`
+- Surnom → `« Identité classifiée »`
+- Citation → `Information restreinte — dossier scellé.`
+- Radar → flouté avec overlay "CLASSIFIÉ"
+- Objectif → reste visible
+
+## Pour Claude Code
+
+Commande type pour intégrer dans le jeu :
+
+```
+Intègre les personnages du fichier corruptio_data/personnages.json dans
+mon jeu CORRUPTIO. Pour chaque personnage :
+1. Crée un composant React FichePersonnage qui respecte la direction
+   artistique décrite dans README_CLAUDE_CODE.md
+2. Charge les portraits depuis corruptio_data/portraits/{id}.jpg
+3. Gère le cas identite_cachee pour l'Espionne
+4. Affiche un radar hexagonal avec les 6 compétences aux couleurs définies
+```
+
+## Référence visuelle
+
+Voir `fiches_personnages.html` pour le rendu visuel de référence des 14 fiches.
