@@ -23,10 +23,11 @@ RUN cd client && npx vite build
 # ── Generate Prisma client ──
 RUN cd server && npx prisma generate
 
-# ── Runtime ──
+# ── Start script that runs migration then server ──
+RUN printf '#!/bin/sh\ncd /app/server\nnpx prisma db push --accept-data-loss\nNODE_ENV=production exec npx tsx src/index.ts\n' > /app/start.sh && chmod +x /app/start.sh
+
 ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 
-WORKDIR /app/server
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["/app/start.sh"]
