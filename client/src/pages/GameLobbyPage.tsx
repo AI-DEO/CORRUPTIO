@@ -65,7 +65,7 @@ export default function GameLobbyPage() {
           <div className="text-sm text-text-secondary">
             {lobbyState?.players.length || 0} / 6 joueurs
           </div>
-          {lobbyState && lobbyState.players.length >= 2 && mySelection && (
+          {lobbyState && lobbyState.players.length >= 1 && mySelection && (
             <button
               onClick={startGame}
               className="px-6 py-3 bg-accent-red hover:bg-accent-red/80 rounded-lg font-bold text-lg transition animate-pulse-red"

@@ -30,16 +30,17 @@ gameRouter.use(authMiddleware)
 // Create a new game room
 gameRouter.post('/create', async (req: Request, res: Response) => {
   const userId = (req as any).userId
+  const solo = req.body?.solo === true
 
   const game = await prisma.game.create({
     data: {
       id: uuidv4().slice(0, 8).toUpperCase(),
       hostId: userId,
-      config: { maxPlayers: 6, minPlayers: 2 },
+      config: { maxPlayers: 6, minPlayers: solo ? 1 : 2, solo },
     },
   })
 
-  res.status(201).json({ gameId: game.id })
+  res.status(201).json({ gameId: game.id, solo })
 })
 
 // List open games

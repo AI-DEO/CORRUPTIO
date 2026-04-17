@@ -26,6 +26,7 @@ import { getAvailableActions } from './actions'
 import { EVENT_CARDS, drawEventCard, applyEventCard } from './events'
 import { TheatreAgent, type AgentGameState, type TheatrePayload } from './TheatreAgent'
 import { drawDestinyCard, getDestinyCardEffect } from './DestinyCards'
+import { BotAgent, randomBotName } from './BotAgent'
 import { MIN_THEATRE_TURN, THEATRE_SURVIVAL_WINDOW_MS } from '../../../shared/types'
 
 // In-memory store of active game engines
@@ -63,6 +64,7 @@ interface InternalPlayerState {
   victoryAchieved: boolean
   hasActedThisTurn: boolean
   messagesThisTurn: number
+  isBot: boolean
 }
 
 export class GameEngine {
@@ -98,6 +100,7 @@ export class GameEngine {
   private ipLeaderTurn5: string | null = null  // For Activiste victory condition
   private electionsWon: Map<string, number> = new Map()  // For Maire victory
   private loanLedger: Array<{ lenderId: string; borrowerId: string; amount: number; turn: number }> = []
+  private bots: Map<string, BotAgent> = new Map()
 
   constructor(
     gameId: string,
@@ -118,7 +121,7 @@ export class GameEngine {
 
   // ── Player Management ──
 
-  addPlayer(userId: string, username: string, character: Character): string {
+  addPlayer(userId: string, username: string, character: Character, isBot: boolean = false): string {
     const config = CHARACTER_CONFIGS[character]
     const campMap: Record<string, Camp> = {
       order: 'order',
@@ -147,8 +150,36 @@ export class GameEngine {
       victoryAchieved: false,
       hasActedThisTurn: false,
       messagesThisTurn: 0,
+      isBot,
     })
+
+    if (isBot) {
+      this.bots.set(playerId, new BotAgent(this, playerId))
+    }
+
     return playerId
+  }
+
+  // ── Solo mode: fill empty slots with bots ──
+
+  fillWithBots(botCount: number): void {
+    const usedCharacters = new Set(this.getAllPlayers().map((p) => p.character))
+    const usedNames = this.getAllPlayers().map((p) => p.username)
+    const allCharacters = Object.values(CHARACTER_CONFIGS)
+    const availableCharacters = allCharacters.filter((c) => !usedCharacters.has(c.character))
+
+    for (let i = 0; i < botCount && availableCharacters.length > 0; i++) {
+      const idx = Math.floor(Math.random() * availableCharacters.length)
+      const char = availableCharacters.splice(idx, 1)[0]
+      const botId = `bot_${this.gameId}_${i}`
+      const botName = randomBotName(usedNames)
+      usedNames.push(botName)
+      this.addPlayer(botId, botName, char.character, true)
+    }
+  }
+
+  getBots(): Map<string, BotAgent> {
+    return this.bots
   }
 
   getPlayerByUserId(userId: string): InternalPlayerState | undefined {
@@ -198,8 +229,8 @@ export class GameEngine {
   // ── Game Start ──
 
   async startGame(): Promise<void> {
-    if (this.players.size < 2) {
-      throw new Error('Need at least 2 players to start')
+    if (this.players.size < 1) {
+      throw new Error('Need at least 1 player to start')
     }
 
     this.status = 'playing'
@@ -216,8 +247,9 @@ export class GameEngine {
       },
     })
 
-    // Create GamePlayer records
+    // Create GamePlayer records (skip bots — they have no User record)
     for (const player of this.players.values()) {
+      if (player.isBot) continue
       await prisma.gamePlayer.create({
         data: {
           id: player.playerId,
@@ -279,6 +311,13 @@ export class GameEngine {
     this.phaseTimer = setTimeout(() => {
       this.advancePhase()
     }, duration)
+
+    // Trigger bot actions on action phase
+    if (phase === 'PUBLIC_ACTION') {
+      for (const bot of this.bots.values()) {
+        bot.playTurn().catch((err) => console.error('[Bot] error:', err))
+      }
+    }
   }
 
   async advancePhase(): Promise<void> {
@@ -458,21 +497,23 @@ export class GameEngine {
         isRevealed: true,
       })
 
-      // Persist action
-      await prisma.action.create({
-        data: {
-          gameId: this.gameId,
-          playerId,
-          turn: this.currentTurn,
-          phase: 'PUBLIC_ACTION',
-          type: 'PUBLIC',
-          actionKey,
-          targetId,
-          payload: (payload || {}) as any,
-          diceResult: result.diceResult,
-          isRevealed: true,
-        },
-      })
+      // Persist action (skip for bots since they have no GamePlayer record)
+      if (!player.isBot) {
+        await prisma.action.create({
+          data: {
+            gameId: this.gameId,
+            playerId,
+            turn: this.currentTurn,
+            phase: 'PUBLIC_ACTION',
+            type: 'PUBLIC',
+            actionKey,
+            targetId,
+            payload: (payload || {}) as any,
+            diceResult: result.diceResult,
+            isRevealed: true,
+          },
+        }).catch((err) => console.error('[DB] action create error:', err))
+      }
 
       // Broadcast
       this.io.to(this.gameId).emit('action:resolved', {
@@ -519,19 +560,21 @@ export class GameEngine {
         isRevealed: false,
       })
 
-      await prisma.action.create({
-        data: {
-          gameId: this.gameId,
-          playerId,
-          turn: this.currentTurn,
-          phase: this.currentPhase as any,
-          type: 'UNDERGROUND',
-          actionKey,
-          targetId,
-          payload: (payload || {}) as any,
-          isRevealed: false,
-        },
-      })
+      if (!player.isBot) {
+        await prisma.action.create({
+          data: {
+            gameId: this.gameId,
+            playerId,
+            turn: this.currentTurn,
+            phase: this.currentPhase as any,
+            type: 'UNDERGROUND',
+            actionKey,
+            targetId,
+            payload: (payload || {}) as any,
+            isRevealed: false,
+          },
+        }).catch((err) => console.error('[DB] underground action create error:', err))
+      }
 
       this.sendPrivateState(playerId)
       if (targetId) this.sendPrivateState(targetId)
@@ -821,6 +864,12 @@ export class GameEngine {
           this.theatreSurvivalTimer = setTimeout(() => {
             this.applyTheatreEffectsNoSurvival()
           }, THEATRE_SURVIVAL_WINDOW_MS)
+
+          // If target is a bot, auto-survive
+          if (player.isBot) {
+            const bot = this.bots.get(player.playerId)
+            if (bot) bot.autoSurviveTheatre().catch((err) => console.error('[Bot] theatre error:', err))
+          }
 
           return // Only 1 theatre event per turn
         } catch (err) {

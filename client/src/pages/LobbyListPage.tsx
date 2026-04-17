@@ -35,7 +35,7 @@ export default function LobbyListPage() {
     }
   }
 
-  async function createGame() {
+  async function createGame(solo: boolean = false) {
     setLoading(true)
     try {
       const res = await fetch('/api/games/create', {
@@ -44,6 +44,7 @@ export default function LobbyListPage() {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ solo }),
       })
       if (res.ok) {
         const { gameId } = await res.json()
@@ -83,36 +84,48 @@ export default function LobbyListPage() {
       </div>
 
       {/* Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <button
-          onClick={createGame}
+          onClick={() => createGame(true)}
+          disabled={loading}
+          className="p-6 bg-bg-secondary border border-accent-gold/50 hover:border-accent-gold rounded-xl transition group"
+        >
+          <div className="text-2xl mb-2">&#x1f3ae;</div>
+          <div className="font-semibold text-lg text-accent-gold">Jouer en solo</div>
+          <div className="text-text-secondary text-sm mt-1">
+            Affrontez 3 bots IA — start immédiat
+          </div>
+        </button>
+
+        <button
+          onClick={() => createGame(false)}
           disabled={loading}
           className="p-6 bg-bg-secondary border border-accent-red/30 hover:border-accent-red rounded-xl transition group"
         >
           <div className="text-2xl mb-2">+</div>
           <div className="font-semibold text-lg">Créer une partie</div>
           <div className="text-text-secondary text-sm mt-1">
-            Devenez l'hôte d'une nouvelle partie
+            Partie multijoueur — invitez vos amis
           </div>
         </button>
 
         <div className="p-6 bg-bg-secondary border border-bg-panel rounded-xl">
-          <div className="font-semibold text-lg mb-3">Rejoindre une partie</div>
+          <div className="font-semibold text-lg mb-3">Rejoindre</div>
           <div className="flex gap-2">
             <input
               type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
-              placeholder="Code de la partie"
-              className="flex-1 px-4 py-2 bg-bg-primary border border-bg-panel rounded-lg focus:outline-none focus:border-accent-teal transition uppercase"
+              placeholder="Code"
+              className="flex-1 px-3 py-2 bg-bg-primary border border-bg-panel rounded-lg focus:outline-none focus:border-accent-teal transition uppercase text-sm"
               maxLength={8}
             />
             <button
               onClick={joinGame}
               disabled={!joinCode.trim()}
-              className="px-6 py-2 bg-accent-teal hover:bg-accent-teal/80 disabled:opacity-50 rounded-lg font-semibold transition"
+              className="px-4 py-2 bg-accent-teal hover:bg-accent-teal/80 disabled:opacity-50 rounded-lg font-semibold transition text-sm"
             >
-              Rejoindre
+              Go
             </button>
           </div>
         </div>

@@ -179,6 +179,29 @@ export function registerSocketHandlers(io: TypedServer): void {
         return
       }
 
+      // In solo mode, fill with bots to reach 4 players
+      const config = (game.config as any) || {}
+      if (config.solo && engine.getPlayerCount() < 4) {
+        const botsNeeded = 4 - engine.getPlayerCount()
+        engine.fillWithBots(botsNeeded)
+
+        // Broadcast lobby update
+        const lobbyPlayers = engine.getAllPlayers().map((p) => ({
+          userId: p.userId,
+          username: p.username,
+          character: p.character,
+          isReady: true,
+          isHost: false,
+        }))
+        io.to(gameId).emit('lobby:updated', {
+          gameId,
+          players: lobbyPlayers,
+          maxPlayers: 6,
+          minPlayers: 1,
+          status: 'starting',
+        })
+      }
+
       try {
         await engine.startGame()
       } catch (err: any) {
