@@ -27,10 +27,14 @@ RUN cd client && npx vite build
 RUN ls -la /app/client/dist/
 
 # ── Generate Prisma client ──
-RUN cd server && npx prisma generate
+WORKDIR /app/server
+RUN npx prisma generate --schema prisma/schema.prisma
 
 # ── Create start script ──
-RUN printf '#!/bin/sh\nset -e\necho "[start.sh] Running prisma db push..."\ncd /app/server\nnpx prisma db push --accept-data-loss\necho "[start.sh] Starting server..."\nexec npx tsx src/index.ts\n' > /app/start.sh && chmod +x /app/start.sh
+# Use the prisma binary installed in node_modules, not npx (avoids version mismatch)
+RUN printf '#!/bin/sh\nset -e\necho "[start.sh] cwd: $(pwd)"\necho "[start.sh] Listing prisma dir:"\nls -la /app/server/prisma/\necho "[start.sh] Running prisma db push..."\ncd /app/server\n./node_modules/.bin/prisma db push --schema prisma/schema.prisma --accept-data-loss\necho "[start.sh] Starting server..."\nNODE_ENV=production exec ./node_modules/.bin/tsx src/index.ts\n' > /app/start.sh && chmod +x /app/start.sh
+
+WORKDIR /app/server
 
 ENV NODE_ENV=production
 EXPOSE 3001
