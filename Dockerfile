@@ -1,18 +1,21 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine
 
 WORKDIR /app
 
-# ── Install dependencies ──
+# ── Install root deps ──
 COPY package.json package-lock.json ./
+RUN npm install --ignore-scripts
+
+# ── Install server deps ──
 COPY shared/package.json ./shared/
 COPY server/package.json server/package-lock.json ./server/
-COPY client/package.json client/package-lock.json ./client/
-
-RUN npm install --ignore-scripts
 RUN cd server && npm install
+
+# ── Install client deps ──
+COPY client/package.json client/package-lock.json ./client/
 RUN cd client && npm install
 
-# ── Copy source ──
+# ── Copy all source ──
 COPY shared/ ./shared/
 COPY server/ ./server/
 COPY client/ ./client/
@@ -20,14 +23,16 @@ COPY client/ ./client/
 # ── Build client ──
 RUN cd client && npx vite build
 
+# ── Verify client dist exists ──
+RUN ls -la /app/client/dist/
+
 # ── Generate Prisma client ──
 RUN cd server && npx prisma generate
 
-# ── Start script that runs migration then server ──
-RUN printf '#!/bin/sh\ncd /app/server\nnpx prisma db push --accept-data-loss\nNODE_ENV=production exec npx tsx src/index.ts\n' > /app/start.sh && chmod +x /app/start.sh
+# ── Create start script ──
+RUN printf '#!/bin/sh\nset -e\necho "[start.sh] Running prisma db push..."\ncd /app/server\nnpx prisma db push --accept-data-loss\necho "[start.sh] Starting server..."\nexec npx tsx src/index.ts\n' > /app/start.sh && chmod +x /app/start.sh
 
 ENV NODE_ENV=production
-ENV PORT=3001
 EXPOSE 3001
 
 CMD ["/app/start.sh"]
