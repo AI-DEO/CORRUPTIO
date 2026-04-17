@@ -35,16 +35,31 @@ export default function OtherPlayers({ players, myPlayerId }: Props) {
             }`}
             style={{ borderLeftWidth: '3px', borderLeftColor: campColor }}
           >
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-semibold text-sm truncate">
-                {player.username}
-              </span>
-              {player.hasActedThisTurn && (
-                <span className="w-2 h-2 rounded-full bg-accent-teal" title="A agi" />
+            <div className="flex items-start gap-2 mb-2">
+              {/* Portrait thumbnail */}
+              {config?.portrait && (
+                <img
+                  src={config.portrait}
+                  alt={config.titre}
+                  className={`w-10 h-10 rounded object-cover grayscale-[30%] border ${
+                    player.hasActedThisTurn ? 'border-accent-teal' : 'border-bg-panel'
+                  }`}
+                  loading="lazy"
+                />
               )}
-            </div>
-            <div className="text-xs text-text-secondary mb-2">
-              {config?.name.split(' — ')[1] || player.character}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm truncate">
+                    {player.username}
+                  </span>
+                  {player.hasActedThisTurn && (
+                    <span className="w-2 h-2 rounded-full bg-accent-teal shrink-0 ml-1" title="A agi" />
+                  )}
+                </div>
+                <div className="text-[10px] text-text-secondary">
+                  {config?.titre || player.character}
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">

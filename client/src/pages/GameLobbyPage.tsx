@@ -132,54 +132,88 @@ export default function GameLobbyPage() {
                     key={config.character}
                     onClick={() => !taken && selectCharacter(config.character)}
                     disabled={taken}
-                    className={`p-4 rounded-xl border-2 text-left transition ${
+                    className={`rounded-xl border-2 text-left transition overflow-hidden relative ${
                       selected
-                        ? 'border-accent-gold bg-accent-gold/10 ring-2 ring-accent-gold/30'
+                        ? 'border-accent-gold ring-2 ring-accent-gold/40 shadow-xl shadow-accent-gold/20'
                         : taken
                         ? 'border-bg-panel/30 bg-bg-secondary/50 opacity-40 cursor-not-allowed'
                         : `${CAMP_COLORS[camp]} hover:border-accent-gold/50 cursor-pointer`
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-display font-bold">{config.name.split(' — ')[1]}</span>
-                      <span className="text-xs text-text-secondary">
+                    {/* Portrait with dossier overlay */}
+                    <div className="relative aspect-[3/2] overflow-hidden bg-bg-primary">
+                      <img
+                        src={config.portrait}
+                        alt={config.titre}
+                        className="w-full h-full object-cover grayscale-[30%] contrast-110"
+                        loading="lazy"
+                      />
+                      {/* Dossier overlay — dark gradient + labels */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/30 to-transparent" />
+                      <div className="absolute top-2 left-2 px-2 py-0.5 bg-accent-red/90 text-white text-[9px] font-bold tracking-[0.2em] uppercase rounded-sm">
+                        CONFIDENTIEL
+                      </div>
+                      <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/70 text-accent-gold text-[9px] font-mono font-bold tracking-wider uppercase rounded-sm">
                         {config.difficulty}
-                      </span>
-                    </div>
-                    <div className="text-xs text-text-secondary mb-2">
-                      {config.name.split(' — ')[0]}
-                    </div>
-
-                    {/* Resources */}
-                    <div className="grid grid-cols-4 gap-1 text-xs">
-                      <div className="text-center">
-                        <div className="text-accent-teal font-bold">{config.ip}</div>
-                        <div className="text-text-secondary">IP</div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-accent-gold font-bold">{config.ar}</div>
-                        <div className="text-text-secondary">AR</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-purple-400 font-bold">{config.is}</div>
-                        <div className="text-text-secondary">IS</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-green-400 font-bold">{config.rep}</div>
-                        <div className="text-text-secondary">REP</div>
+                      {/* Character name on image */}
+                      <div className="absolute bottom-0 left-0 right-0 p-2">
+                        <div className="font-display text-lg font-bold text-accent-gold leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                          {config.titre}
+                        </div>
+                        <div className="text-[11px] text-text-primary/90 font-mono uppercase tracking-wider">
+                          {config.name.split(' — ')[0]}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Victory condition */}
-                    <div className="mt-2 text-xs text-text-secondary italic leading-tight">
-                      {config.victoryCondition}
-                    </div>
-
-                    {taken && (
-                      <div className="mt-2 text-xs text-accent-red font-semibold">
-                        Pris par un autre joueur
+                    {/* Body */}
+                    <div className="p-3 space-y-2">
+                      <div className="text-[10px] text-accent-teal font-semibold uppercase tracking-[0.15em]">
+                        {config.faction}
                       </div>
-                    )}
+
+                      <p className="text-xs text-text-secondary italic leading-snug line-clamp-2">
+                        {config.description}
+                      </p>
+
+                      {/* Resources */}
+                      <div className="grid grid-cols-4 gap-1 text-xs pt-1 border-t border-bg-panel/50">
+                        <div className="text-center">
+                          <div className="text-accent-teal font-bold">{config.ip}</div>
+                          <div className="text-[9px] text-text-secondary">IP</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-accent-gold font-bold">{config.ar}</div>
+                          <div className="text-[9px] text-text-secondary">AR</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-purple-400 font-bold">{config.is}</div>
+                          <div className="text-[9px] text-text-secondary">IS</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-green-400 font-bold">{config.rep}</div>
+                          <div className="text-[9px] text-text-secondary">REP</div>
+                        </div>
+                      </div>
+
+                      {/* Victory condition */}
+                      <div className="text-[10px] text-text-secondary italic leading-tight border-t border-bg-panel/50 pt-2">
+                        <span className="text-accent-red font-semibold not-italic">OBJECTIF : </span>
+                        {config.victoryCondition}
+                      </div>
+
+                      {taken && (
+                        <div className="text-xs text-accent-red font-semibold text-center">
+                          Pris par un autre joueur
+                        </div>
+                      )}
+                      {selected && (
+                        <div className="text-xs text-accent-gold font-bold text-center">
+                          SÉLECTIONNÉ
+                        </div>
+                      )}
+                    </div>
                   </button>
                 )
               })}

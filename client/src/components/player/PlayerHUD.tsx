@@ -46,22 +46,41 @@ export default function PlayerHUD({ state }: Props) {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Character info */}
+      {/* Character dossier */}
       <div
-        className="p-3 rounded-xl border"
-        style={{ borderColor: campColor, backgroundColor: `${campColor}33` }}
+        className="rounded-xl border-2 overflow-hidden"
+        style={{ borderColor: campColor }}
       >
-        <div className="font-display font-bold text-lg">
-          {config.name.split(' — ')[1]}
+        {/* Portrait */}
+        <div className="relative aspect-[3/2] bg-bg-primary overflow-hidden">
+          <img
+            src={config.portrait}
+            alt={config.titre}
+            className="w-full h-full object-cover grayscale-[20%] contrast-110"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/20 to-transparent" />
+          <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-accent-red/90 text-white text-[8px] font-bold tracking-[0.2em] uppercase rounded-sm">
+            DOSSIER
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 p-2">
+            <div className="font-display text-base font-bold text-accent-gold leading-tight drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]">
+              {config.titre}
+            </div>
+            <div className="text-[10px] text-text-primary/90 font-mono uppercase tracking-wider">
+              {config.name.split(' — ')[0]}
+            </div>
+          </div>
         </div>
-        <div className="text-xs text-text-secondary">
-          {config.name.split(' — ')[0]}
-        </div>
-        <div
-          className="text-xs font-semibold mt-1 uppercase"
-          style={{ color: campColor }}
-        >
-          {state.camp === 'order' ? 'ORDRE' : state.camp === 'shadow' ? 'OMBRE' : 'NEUTRE'}
+        {/* Info strip */}
+        <div className="px-3 py-2" style={{ backgroundColor: `${campColor}33` }}>
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-accent-teal font-semibold uppercase tracking-wider">
+              {config.faction}
+            </span>
+            <span className="font-mono font-bold uppercase" style={{ color: campColor }}>
+              {state.camp === 'order' ? 'ORDRE' : state.camp === 'shadow' ? 'OMBRE' : 'NEUTRE'}
+            </span>
+          </div>
         </div>
       </div>
 
