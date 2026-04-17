@@ -1,37 +1,27 @@
 FROM node:20-alpine
 
-# Cache buster: v4
 WORKDIR /app
 
-# ── Install root deps ──
 COPY package.json package-lock.json ./
 RUN npm install --ignore-scripts
 
-# ── Install server deps ──
 COPY shared/package.json ./shared/
 COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm install
 
-# ── Install client deps ──
 COPY client/package.json client/package-lock.json ./client/
 RUN cd client && npm install
 
-# ── Copy all source ──
 COPY shared/ ./shared/
 COPY server/ ./server/
 COPY client/ ./client/
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
 
-# ── Build client ──
 RUN cd client && npx vite build
-RUN ls -la /app/client/dist/
 
-# ── Generate Prisma client ──
 WORKDIR /app/server
 RUN npx prisma generate --schema prisma/schema.prisma
 
-WORKDIR /app/server
 ENV NODE_ENV=production
 EXPOSE 3001
-CMD ["/app/start.sh"]
+
+CMD ["sh", "-c", "echo STARTING && cd /app/server && ./node_modules/.bin/prisma db push --schema prisma/schema.prisma --accept-data-loss --skip-generate 2>&1 && echo PRISMA_DONE && echo PORT=$PORT && NODE_ENV=production PORT=${PORT:-3001} ./node_modules/.bin/tsx src/index.ts 2>&1"]
