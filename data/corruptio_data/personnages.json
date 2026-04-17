@@ -1,0 +1,204 @@
+{
+    "version": "1.0",
+    "jeu": "CORRUPTIO",
+    "ville": "Porto Mendacio",
+    "note": "Ce fichier contient les fiches des 14 personnages jouables. Les portraits se trouvent dans le dossier portraits/ avec le format nom_id.jpg",
+    "personnages": [
+          {
+                  "id": "maire",
+                  "nom": "Salvatore Mendaci",
+                  "titre": "Le Maire",
+                  "faction": "Administration",
+                  "description": "Maire depuis 12 ans, maître de la corruption institutionnelle. Il contrôle les contrats publics et les nominations.",
+                  "capaciteSpeciale": "Décret d'urgence : annule une action adverse une fois par manche",
+                  "portrait": "portraits/maire_salvatore.jpg",
+                  "stats": {
+                            "influence": 8,
+                            "corruption": 9,
+                            "popularite": 4
+                  }
+          },
+          {
+                  "id": "commissaire",
+                  "nom": "Dolores Vega",
+                  "titre": "La Commissaire",
+                  "faction": "Forces de l'ordre",
+                  "description": "Chef de la police de Porto Mendacio. Elle ferme les yeux sur certains crimes en échange de faveurs politiques.",
+                  "capaciteSpeciale": "Arrestation ciblée : bloque un joueur pendant un tour",
+                  "portrait": "portraits/commissaire_dolores.jpg",
+                  "stats": {
+                            "influence": 7,
+                            "corruption": 6,
+                            "popularite": 5
+                  }
+          },
+          {
+                  "id": "promoteur",
+                  "nom": "Enzo Palazzi",
+                  "titre": "Le Promoteur",
+                  "faction": "Affaires",
+                  "description": "Promoteur immobilier sans scrupules. Il rachète les quartiers populaires avec l'aide des élus corrompus.",
+                  "capaciteSpeciale": "Spéculation : double les gains d'influence sur une zone",
+                  "portrait": "portraits/promoteur_enzo.jpg",
+                  "stats": {
+                            "influence": 6,
+                            "corruption": 7,
+                            "popularite": 3
+                  }
+          },
+          {
+                  "id": "journaliste",
+                  "nom": "Camille Vérité",
+                  "titre": "La Journaliste",
+                  "faction": "Presse",
+                  "description": "Journaliste d'investigation. Elle peut exposer les scandales mais aussi les étouffer pour monnayer son silence.",
+                  "capaciteSpeciale": "Scoop : révèle la main d'un joueur adverse",
+                  "portrait": "portraits/journaliste_camille.jpg",
+                  "stats": {
+                            "influence": 5,
+                            "corruption": 4,
+                            "popularite": 8
+                  }
+          },
+          {
+                  "id": "eveque",
+                  "nom": "Mgr. Benedetto Croce",
+                  "titre": "L'Évêque",
+                  "faction": "Église",
+                  "description": "Figure morale officielle de Porto Mendacio, il bénit les puissants en échange de donations généreuses.",
+                  "capaciteSpeciale": "Absolution : supprime 3 points de corruption d'un joueur allié",
+                  "portrait": "portraits/eveque_benedetto.jpg",
+                  "stats": {
+                            "influence": 7,
+                            "corruption": 5,
+                            "popularite": 7
+                  }
+          },
+          {
+                  "id": "chef_syndicat",
+                  "nom": "Bruno Ferraglia",
+                  "titre": "Le Chef Syndical",
+                  "faction": "Syndicats",
+                  "description": "Leader des syndicats portuaires. Il peut déclencher des grèves ou les étouffer selon le plus offrant.",
+                  "capaciteSpeciale": "Grève générale : bloque toutes les actions économiques pendant un tour",
+                  "portrait": "portraits/syndicat_bruno.jpg",
+                  "stats": {
+                            "influence": 6,
+                            "corruption": 5,
+                            "popularite": 6
+                  }
+          },
+          {
+                  "id": "avocat",
+                  "nom": "Rafaela Torquato",
+                  "titre": "L'Avocate",
+                  "faction": "Justice",
+                  "description": "Avocate vedette, elle défend les puissants et fait disparaître les preuves gênantes.",
+                  "capaciteSpeciale": "Vice de procédure : annule une sanction contre n'importe quel joueur",
+                  "portrait": "portraits/avocat_rafaela.jpg",
+                  "stats": {
+                            "influence": 6,
+                            "corruption": 7,
+                            "popularite": 4
+                  }
+          },
+          {
+                  "id": "banquier",
+                  "nom": "Othmar Geldmann",
+                  "titre": "Le Banquier",
+                  "faction": "Finance",
+                  "description": "Directeur de la Banca Mendacio. Il blanchit l'argent des élus et finance les campagnes électorales.",
+                  "capaciteSpeciale": "Blanchiment : convertit 5 points de corruption en 3 points d'influence",
+                  "portrait": "portraits/banquier_othmar.jpg",
+                  "stats": {
+                            "influence": 7,
+                            "corruption": 8,
+                            "popularite": 2
+                  }
+          },
+          {
+                  "id": "parrain",
+                  "nom": "Don Cosimo Obscuro",
+                  "titre": "Le Parrain",
+                  "faction": "Crime organisé",
+                  "description": "Le vrai maître de Porto Mendacio dans l'ombre. Chaque faction lui doit quelque chose.",
+                  "capaciteSpeciale": "Omerta : empêche toute révélation d'information pendant 2 tours",
+                  "portrait": "portraits/parrain_cosimo.jpg",
+                  "stats": {
+                            "influence": 9,
+                            "corruption": 10,
+                            "popularite": 1
+                  }
+          },
+          {
+                  "id": "magistrat",
+                  "nom": "Julietta Probitas",
+                  "titre": "La Magistrate",
+                  "faction": "Justice",
+                  "description": "Seul personnage véritablement intègre de Porto Mendacio. Elle peut tout perdre ou tout faire basculer.",
+                  "capaciteSpeciale": "Inculpation : élimine définitivement un personnage si sa corruption dépasse 8",
+                  "portrait": "portraits/magistrat_julietta.jpg",
+                  "stats": {
+                            "influence": 5,
+                            "corruption": 1,
+                            "popularite": 9
+                  }
+          },
+          {
+                  "id": "architecte",
+                  "nom": "Vera Cemento",
+                  "titre": "L'Architecte",
+                  "faction": "Affaires",
+                  "description": "Architecte municipale, elle valide les permis de construire illégaux en échange de rétrocommissions.",
+                  "capaciteSpeciale": "Permis exceptionnel : ajoute une zone neutre au plateau",
+                  "portrait": "portraits/architecte_vera.jpg",
+                  "stats": {
+                            "influence": 5,
+                            "corruption": 6,
+                            "popularite": 4
+                  }
+          },
+          {
+                  "id": "medecin",
+                  "nom": "Dr. Ignazio Pillola",
+                  "titre": "Le Médecin",
+                  "faction": "Santé",
+                  "description": "Directeur de l'hôpital public, il détourne les fonds de santé et prescrit des faux certificats.",
+                  "capaciteSpeciale": "Rapport médical : neutralise les effets négatifs d'une action sur un joueur allié",
+                  "portrait": "portraits/medecin_ignazio.jpg",
+                  "stats": {
+                            "influence": 5,
+                            "corruption": 6,
+                            "popularite": 5
+                  }
+          },
+          {
+                  "id": "militante",
+                  "nom": "Rosa Fuoco",
+                  "titre": "La Militante",
+                  "faction": "Opposition",
+                  "description": "Militante anticorruption, elle mobilise les citoyens et peut créer des coalitions improbables.",
+                  "capaciteSpeciale": "Manifestation : réduit de 2 la popularité de tous les joueurs au pouvoir",
+                  "portrait": "portraits/militante_rosa.jpg",
+                  "stats": {
+                            "influence": 4,
+                            "corruption": 2,
+                            "popularite": 8
+                  }
+          },
+          {
+                  "id": "lobbyiste",
+                  "nom": "Sergio Lobbino",
+                  "titre": "Le Lobbyiste",
+                  "faction": "Affaires",
+                  "description": "Représentant des intérêts privés auprès des élus. Il distribue des enveloppes et arrange les dossiers.",
+                  "capaciteSpeciale": "Trafic d'influence : échange 3 points d'influence contre une action supplémentaire",
+                  "portrait": "portraits/lobbyiste_sergio.jpg",
+                  "stats": {
+                            "influence": 6,
+                            "corruption": 7,
+                            "popularite": 3
+                  }
+          }
+    ]
+}
