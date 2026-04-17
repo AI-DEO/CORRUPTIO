@@ -4,6 +4,7 @@ import { useSocket } from '../hooks/useSocket'
 import { useGameStore } from '../stores/gameStore'
 import { useAuthStore } from '../stores/authStore'
 import { CHARACTER_CONFIGS, type Character } from '@shared/types'
+import RadarChart from '../components/ui/RadarChart'
 
 const CAMP_COLORS: Record<string, string> = {
   order: 'border-camp-order bg-camp-order/20',
@@ -140,76 +141,103 @@ export default function GameLobbyPage() {
                         : `${CAMP_COLORS[camp]} hover:border-accent-gold/50 cursor-pointer`
                     }`}
                   >
-                    {/* Portrait with dossier overlay */}
-                    <div className="relative aspect-[3/2] overflow-hidden bg-bg-primary">
-                      <img
-                        src={config.portrait}
-                        alt={config.titre}
-                        className="w-full h-full object-cover grayscale-[30%] contrast-110"
-                        loading="lazy"
-                      />
-                      {/* Dossier overlay — dark gradient + labels */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-bg-primary/30 to-transparent" />
-                      <div className="absolute top-2 left-2 px-2 py-0.5 bg-accent-red/90 text-white text-[9px] font-bold tracking-[0.2em] uppercase rounded-sm">
-                        CONFIDENTIEL
-                      </div>
-                      <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/70 text-accent-gold text-[9px] font-mono font-bold tracking-wider uppercase rounded-sm">
+                    {/* Card background gradient — emerald dossier */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-[#142820] to-[#0a1812] opacity-90 pointer-events-none" />
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(106,184,150,0.08)_0%,transparent_60%)] pointer-events-none" />
+
+                    {/* Dossier number watermark */}
+                    <div className="absolute top-1 right-2 text-[60px] font-black font-mono text-white/[0.04] leading-none pointer-events-none select-none">
+                      {config.numeroDossier}
+                    </div>
+
+                    {/* Top bar — CONFIDENTIEL + difficulty */}
+                    <div className="relative flex items-center justify-between px-3 py-1.5 border-b border-[#2e4238]/50">
+                      <span className="text-[8px] font-bold tracking-[0.25em] text-accent-red uppercase">
+                        DOSSIER N°{config.numeroDossier}
+                      </span>
+                      <span className="text-[8px] font-mono text-[#6ab896]">
                         {config.difficulty}
+                      </span>
+                    </div>
+
+                    {/* Portrait + Radar side by side */}
+                    <div className="relative flex items-start gap-2 px-3 pt-2">
+                      {/* Portrait */}
+                      <div className="relative w-20 h-20 shrink-0 rounded-full overflow-hidden border-2 border-[#6ab896]/40">
+                        {config.identiteCachee ? (
+                          <div className="w-full h-full bg-bg-primary flex items-center justify-center">
+                            <span className="text-3xl text-[#6ab896]/50">?</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={config.portrait}
+                            alt={config.titre}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                        <div className="absolute inset-0 rounded-full border border-dashed border-[#6ab896]/30" style={{ margin: '-3px' }} />
                       </div>
-                      {/* Character name on image */}
-                      <div className="absolute bottom-0 left-0 right-0 p-2">
-                        <div className="font-display text-lg font-bold text-accent-gold leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                          {config.titre}
-                        </div>
-                        <div className="text-[11px] text-text-primary/90 font-mono uppercase tracking-wider">
-                          {config.name.split(' — ')[0]}
-                        </div>
+
+                      {/* Radar chart */}
+                      <div className="flex-1 flex justify-center -mt-1">
+                        <RadarChart
+                          stats={{
+                            influence: config.ip,
+                            argent: config.ar,
+                            secrets: config.is,
+                            reputation: config.rep,
+                            charisme: config.charisme,
+                            intuition: config.intuition,
+                          }}
+                          size={110}
+                          classified={config.identiteCachee}
+                        />
                       </div>
                     </div>
 
-                    {/* Body */}
-                    <div className="p-3 space-y-2">
-                      <div className="text-[10px] text-accent-teal font-semibold uppercase tracking-[0.15em]">
+                    {/* Character info */}
+                    <div className="relative px-3 pb-3 pt-1 space-y-1.5">
+                      {/* Name + surnom */}
+                      <div>
+                        <div className="font-display text-base font-bold text-[#6ab896] leading-tight">
+                          {config.identiteCachee ? '? ? ? ? ?' : config.titre}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-[#e6f0ea]/90 font-mono">
+                            {config.identiteCachee ? 'Identité classifiée' : config.name}
+                          </span>
+                          <span className="text-[9px] text-[#9dd4b8]/60 italic">
+                            « {config.identiteCachee ? 'Identité classifiée' : config.surnom} »
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Faction */}
+                      <div className="text-[9px] text-[#6ab896]/70 font-semibold uppercase tracking-[0.2em]">
                         {config.faction}
                       </div>
 
-                      <p className="text-xs text-text-secondary italic leading-snug line-clamp-2">
-                        {config.description}
+                      {/* Citation */}
+                      <p className="text-[10px] text-[#e6f0ea]/55 italic leading-snug line-clamp-2 border-l-2 border-[#6ab896]/30 pl-2">
+                        {config.identiteCachee
+                          ? 'Information restreinte — dossier scellé.'
+                          : `"${config.citation}"`}
                       </p>
 
-                      {/* Resources */}
-                      <div className="grid grid-cols-4 gap-1 text-xs pt-1 border-t border-bg-panel/50">
-                        <div className="text-center">
-                          <div className="text-accent-teal font-bold">{config.ip}</div>
-                          <div className="text-[9px] text-text-secondary">IP</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-accent-gold font-bold">{config.ar}</div>
-                          <div className="text-[9px] text-text-secondary">AR</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-purple-400 font-bold">{config.is}</div>
-                          <div className="text-[9px] text-text-secondary">IS</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-green-400 font-bold">{config.rep}</div>
-                          <div className="text-[9px] text-text-secondary">REP</div>
-                        </div>
-                      </div>
-
-                      {/* Victory condition */}
-                      <div className="text-[10px] text-text-secondary italic leading-tight border-t border-bg-panel/50 pt-2">
-                        <span className="text-accent-red font-semibold not-italic">OBJECTIF : </span>
+                      {/* Objective */}
+                      <div className="text-[9px] text-[#e6f0ea]/70 leading-tight pt-1 border-t border-[#2e4238]/50">
+                        <span className="text-accent-red font-bold not-italic tracking-wider">OBJECTIF : </span>
                         {config.victoryCondition}
                       </div>
 
                       {taken && (
-                        <div className="text-xs text-accent-red font-semibold text-center">
+                        <div className="text-xs text-accent-red font-semibold text-center pt-1">
                           Pris par un autre joueur
                         </div>
                       )}
                       {selected && (
-                        <div className="text-xs text-accent-gold font-bold text-center">
+                        <div className="text-xs text-[#6ab896] font-bold text-center pt-1">
                           SÉLECTIONNÉ
                         </div>
                       )}
