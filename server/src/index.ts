@@ -1,22 +1,17 @@
 import express from 'express'
 import http from 'http'
 import path from 'path'
-import { fileURLToPath } from 'url'
+import fs from 'fs'
 import cors from 'cors'
 import { Server } from 'socket.io'
 import { PrismaClient } from '@prisma/client'
-import { authRouter } from './api/auth'
-import { gameRouter } from './api/games'
-import { registerSocketHandlers } from './socket/handlers'
 import type { ClientToServerEvents, ServerToClientEvents } from '../../shared/types'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-console.log('[CORRUPTIO] Starting server...')
+console.log('[CORRUPTIO] === SERVER STARTUP ===')
 console.log('[CORRUPTIO] NODE_ENV:', process.env.NODE_ENV)
 console.log('[CORRUPTIO] PORT:', process.env.PORT)
 console.log('[CORRUPTIO] DATABASE_URL exists:', !!process.env.DATABASE_URL)
+console.log('[CORRUPTIO] cwd:', process.cwd())
 
 const app = express()
 const server = http.createServer(app)
@@ -38,39 +33,65 @@ if (!IS_PROD) {
 }
 app.use(express.json())
 
-// REST routes
-app.use('/api/auth', authRouter)
-app.use('/api/games', gameRouter)
-
-// Health check — must be before static files
+// Health check — defined early, before any dynamic imports
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() })
 })
 
-// In production, serve the built client
-if (IS_PROD) {
-  // Try multiple paths for client dist
-  const candidates = [
-    path.resolve(__dirname, '../../../client/dist'),
-    path.resolve(process.cwd(), '../client/dist'),
-    '/app/client/dist',
-  ]
-  const fs = await import('fs')
-  const clientDist = candidates.find((p) => fs.existsSync(p)) || candidates[2]
-  console.log('[CORRUPTIO] Serving static files from:', clientDist)
+async function main() {
+  // Dynamic imports to catch any module errors
+  const { authRouter } = await import('./api/auth')
+  const { gameRouter } = await import('./api/games')
+  const { registerSocketHandlers } = await import('./socket/handlers')
 
-  app.use(express.static(clientDist))
-  // SPA fallback — all non-API, non-socket routes serve index.html
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'))
+  console.log('[CORRUPTIO] Modules loaded successfully')
+
+  // REST routes
+  app.use('/api/auth', authRouter)
+  app.use('/api/games', gameRouter)
+
+  // In production, serve the built client
+  if (IS_PROD) {
+    const candidates = [
+      path.join(process.cwd(), '../client/dist'),
+      '/app/client/dist',
+      path.join(process.cwd(), 'client/dist'),
+    ]
+
+    let clientDist = '/app/client/dist'
+    for (const candidate of candidates) {
+      const exists = fs.existsSync(candidate)
+      console.log('[CORRUPTIO] Checking:', candidate, '→', exists)
+      if (exists) {
+        clientDist = candidate
+        break
+      }
+    }
+
+    console.log('[CORRUPTIO] Using static dir:', clientDist)
+
+    if (fs.existsSync(clientDist)) {
+      console.log('[CORRUPTIO] dist contents:', fs.readdirSync(clientDist))
+      app.use(express.static(clientDist))
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(clientDist, 'index.html'))
+      })
+    } else {
+      console.error('[CORRUPTIO] ERROR: client dist dir not found!')
+    }
+  }
+
+  // Socket.io
+  registerSocketHandlers(io)
+
+  const PORT = parseInt(process.env.PORT || '3001', 10)
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[CORRUPTIO] Server listening on http://0.0.0.0:${PORT}`)
   })
 }
 
-// Socket.io
-registerSocketHandlers(io)
-
-const PORT = parseInt(process.env.PORT || '3001', 10)
-
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[CORRUPTIO] Server running on http://0.0.0.0:${PORT} (${IS_PROD ? 'production' : 'development'})`)
+main().catch((err) => {
+  console.error('[CORRUPTIO] FATAL:', err)
+  process.exit(1)
 })
